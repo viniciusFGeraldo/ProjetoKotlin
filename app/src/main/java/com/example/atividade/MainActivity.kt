@@ -1,6 +1,6 @@
 package com.example.atividade
 
-import com.example.atividade.MainActivity.Companion.productList
+import com.example.atividade.MainActivity.Companion.listaProdutos
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -21,7 +21,7 @@ import com.google.gson.Gson
 
 class MainActivity : ComponentActivity() {
     companion object {
-        val productList = mutableListOf<Product>()
+        val listaProdutos = mutableListOf<Produto>()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,23 +37,23 @@ class MainActivity : ComponentActivity() {
         NavHost(navController, startDestination = "cadastro") {
             composable("cadastro") { CadastroProduto(navController) }
             composable("lista") { ListaProdutos(navController) }
-            composable("detalhes/{productIndex}") { backStackEntry ->
-                val index = backStackEntry.arguments?.getString("productIndex")?.toInt()
-                DetalhesProduto(index)
+            composable("detalhes/{produtoJson}") { backStackEntry ->
+                val produtoJson = backStackEntry.arguments?.getString("produtoJson")
+                DetalhesProduto(navController, produtoJson)
             }
         }
     }
 
-    data class Product(val name: String, val category: String, val price: Double, val quantity: Int)
+    data class Produto(val nome: String, val categoria: String, val preco: Double, val quantidade: Int)
 
 }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CadastroProduto(navController: NavController) {
-    var name by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("") }
-    var price by remember { mutableStateOf("") }
-    var quantity by remember { mutableStateOf("") }
+    var nome by remember { mutableStateOf("") }
+    var categoria by remember { mutableStateOf("") }
+    var preco by remember { mutableStateOf("") }
+    var quantidade by remember { mutableStateOf("") }
     val context = LocalContext.current
 
     Column(
@@ -65,8 +65,8 @@ fun CadastroProduto(navController: NavController) {
         Text("Cadastro de Produto")
 
         TextField(
-            value = name,
-            onValueChange = { name = it },
+            value = nome,
+            onValueChange = { nome = it },
             label = { Text("Nome do Produto") },
             modifier = Modifier.fillMaxWidth()
         )
@@ -74,8 +74,8 @@ fun CadastroProduto(navController: NavController) {
         Spacer(modifier = Modifier.height(8.dp))
 
         TextField(
-            value = category,
-            onValueChange = { category = it },
+            value = categoria,
+            onValueChange = { categoria = it },
             label = { Text("Categoria") },
             modifier = Modifier.fillMaxWidth()
         )
@@ -83,8 +83,8 @@ fun CadastroProduto(navController: NavController) {
         Spacer(modifier = Modifier.height(8.dp))
 
         TextField(
-            value = price,
-            onValueChange = { price = it },
+            value = preco,
+            onValueChange = { preco = it },
             label = { Text("Preço") },
             modifier = Modifier.fillMaxWidth()
         )
@@ -92,8 +92,8 @@ fun CadastroProduto(navController: NavController) {
         Spacer(modifier = Modifier.height(8.dp))
 
         TextField(
-            value = quantity,
-            onValueChange = { quantity = it },
+            value = quantidade,
+            onValueChange = { quantidade = it },
             label = { Text("Quantidade em Estoque") },
             modifier = Modifier.fillMaxWidth()
         )
@@ -101,18 +101,18 @@ fun CadastroProduto(navController: NavController) {
         Spacer(modifier = Modifier.height(16.dp))
 
         Button(onClick = {
-            if (name.isBlank() || category.isBlank() || price.isBlank() || quantity.isBlank()) {
+            if (nome.isBlank() || categoria.isBlank() || preco.isBlank() || quantidade.isBlank()) {
                 Toast.makeText(context, "Todos os campos são obrigatórios", Toast.LENGTH_SHORT).show()
             } else {
-                val product =
-                    MainActivity.Product(name, category, price.toDouble(), quantity.toInt())
-                productList.add(product)
-                name = ""
-                category = ""
-                price = ""
-                quantity = ""
+                val produto =
+                    MainActivity.Produto(nome, categoria, preco.toDouble(), quantidade.toInt())
+                listaProdutos.add(produto)
+                nome = ""
+                categoria = ""
+                preco = ""
+                quantidade = ""
                 Toast.makeText(context, "Produto cadastrado com sucesso!", Toast.LENGTH_SHORT).show()
-                navController.navigate("lista")
+                navController.navigate("lista") // Navega para a lista de produtos
             }
         }) {
             Text("Cadastrar")
@@ -120,24 +120,27 @@ fun CadastroProduto(navController: NavController) {
     }
 }
 
+
 @Composable
 fun ListaProdutos(navController: NavController) {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text("Lista de Produtos")
 
         LazyColumn {
-            items(MainActivity.productList.size) { index ->
-                val product = MainActivity.productList[index]
+            items(listaProdutos.size) { index ->
+                val produto = listaProdutos[index]
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("${product.name} (${product.quantity} unidades)", modifier = Modifier.weight(1f))
+                    Text("${produto.nome} (${produto.quantidade} unidades)", modifier = Modifier.weight(1f))
 
                     Button(onClick = {
-                        navController.navigate("detalhes/$index")
+                        // Serializa o produto para JSON
+                        val produtoJson = Gson().toJson(produto)
+                        navController.navigate("detalhes/$produtoJson") // Navega para os detalhes do produto
                     }) {
                         Text("Detalhes")
                     }
@@ -147,21 +150,22 @@ fun ListaProdutos(navController: NavController) {
     }
 }
 @Composable
-fun DetalhesProduto(index: Int?) {
-    if (index == null || index !in MainActivity.productList.indices) {
-        Text("Produto não encontrado")
-        return
-    }
-
-    val product = MainActivity.productList[index]
+fun DetalhesProduto(navController: NavController, produtoJson: String?) {
+    val produto = Gson().fromJson(produtoJson, MainActivity.Produto::class.java)
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text("Detalhes do Produto")
         Spacer(modifier = Modifier.height(16.dp))
-        Text("Nome: ${product.name}")
-        Text("Categoria: ${product.category}")
-        Text("Preço: R$ ${product.price}")
-        Text("Quantidade em Estoque: ${product.quantity} unidades")
+        Text("Nome: ${produto.nome}")
+        Text("Categoria: ${produto.categoria}")
+        Text("Preço: R$ ${produto.preco}")
+        Text("Quantidade em Estoque: ${produto.quantidade} unidades")
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(onClick = { navController.popBackStack() }) {
+            Text("Voltar")
+        }
     }
 }
 
