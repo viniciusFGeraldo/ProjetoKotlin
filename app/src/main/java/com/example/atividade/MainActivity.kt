@@ -5,7 +5,9 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,7 +21,7 @@ import com.google.gson.Gson
 
 class MainActivity : ComponentActivity() {
     companion object {
-        val productList = mutableListOf<Product>() // Lista estática de produtos
+        val productList = mutableListOf<Product>()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,8 +36,11 @@ class MainActivity : ComponentActivity() {
         val navController = rememberNavController()
         NavHost(navController, startDestination = "cadastro") {
             composable("cadastro") { CadastroProduto(navController) }
-            composable("lista") { /* Tela de Lista de Produtos */ }
-            composable("detalhes/{productId}") { /* Tela de Detalhes do Produto */ }
+            composable("lista") { ListaProdutos(navController) }
+            composable("detalhes/{productIndex}") { backStackEntry ->
+                val index = backStackEntry.arguments?.getString("productIndex")?.toInt()
+                DetalhesProduto(index)
+            }
         }
     }
 
@@ -102,18 +107,61 @@ fun CadastroProduto(navController: NavController) {
                 val product =
                     MainActivity.Product(name, category, price.toDouble(), quantity.toInt())
                 productList.add(product)
-                // Limpar os campos após o cadastro
                 name = ""
                 category = ""
                 price = ""
                 quantity = ""
                 Toast.makeText(context, "Produto cadastrado com sucesso!", Toast.LENGTH_SHORT).show()
-
-                // Navegar para a lista de produtos (opcional)
-                // navController.navigate("lista")
+                navController.navigate("lista")
             }
         }) {
             Text("Cadastrar")
         }
     }
 }
+
+@Composable
+fun ListaProdutos(navController: NavController) {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Text("Lista de Produtos")
+
+        LazyColumn {
+            items(MainActivity.productList.size) { index ->
+                val product = MainActivity.productList[index]
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("${product.name} (${product.quantity} unidades)", modifier = Modifier.weight(1f))
+
+                    Button(onClick = {
+                        navController.navigate("detalhes/$index")
+                    }) {
+                        Text("Detalhes")
+                    }
+                }
+            }
+        }
+    }
+}
+@Composable
+fun DetalhesProduto(index: Int?) {
+    if (index == null || index !in MainActivity.productList.indices) {
+        Text("Produto não encontrado")
+        return
+    }
+
+    val product = MainActivity.productList[index]
+
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Text("Detalhes do Produto")
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("Nome: ${product.name}")
+        Text("Categoria: ${product.category}")
+        Text("Preço: R$ ${product.price}")
+        Text("Quantidade em Estoque: ${product.quantity} unidades")
+    }
+}
+
